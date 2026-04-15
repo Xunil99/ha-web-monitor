@@ -31,6 +31,10 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Web Monitor component."""
     hass.data.setdefault(DOMAIN, {})
+
+    from . import websocket_api as ws_api
+    ws_api.async_setup(hass)
+
     return True
 
 
