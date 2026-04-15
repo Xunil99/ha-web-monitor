@@ -11,12 +11,20 @@ Browse to any web page, visually select an element, and monitor its value on a s
 - Optional screenshot capture
 - Session persistence between scraping runs
 
-## Installation (HAOS)
+## Installation via HACS
 
-1. Copy `custom_components/web_monitor/` to your HA `config/custom_components/` directory
+1. In HACS auf die drei Punkte oben rechts klicken > "Benutzerdefinierte Repositories"
+2. URL `https://github.com/Xunil99/ha-web-monitor` eingeben, Kategorie "Integration"
+3. "Web Monitor" suchen und installieren
+4. Home Assistant neu starten
+5. Settings > Devices & Services > Add Integration > "Web Monitor"
+
+## Installation (manuell)
+
+1. `custom_components/web_monitor/` in dein HA `config/custom_components/` Verzeichnis kopieren
    (z.B. via Samba-Share, SSH Add-on, oder File Editor Add-on)
-2. Restart Home Assistant
-3. Go to Settings > Devices & Services > Add Integration > "Web Monitor"
+2. Home Assistant neu starten
+3. Settings > Devices & Services > Add Integration > "Web Monitor"
 
 Python-Pakete (`playwright`, `aiosqlite`) und der Chromium-Browser werden beim ersten Start **automatisch** installiert. Der erste Start kann 1-2 Minuten dauern (~150MB Chromium-Download).
 
