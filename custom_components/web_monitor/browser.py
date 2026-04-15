@@ -6,8 +6,6 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from playwright.async_api import async_playwright
-
 from .const import (
     EXTRACT_ATTRIBUTE,
     EXTRACT_INNER_HTML,
@@ -61,6 +59,8 @@ class BrowserWrapper:
     ) -> ScrapeResult:
         timeout_ms = timeout * 1000
         state_path = self._storage_state_path(monitor_id)
+
+        from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)

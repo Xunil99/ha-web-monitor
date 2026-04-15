@@ -9,8 +9,6 @@ import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
 
-from playwright.async_api import async_playwright
-
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,6 +87,8 @@ class BrowserSession:
         self._steps: list[dict] = []
 
     async def start(self, url: str = "about:blank") -> None:
+        from playwright.async_api import async_playwright
+
         self._pw = await async_playwright().start()
         self._browser = await self._pw.chromium.launch(
             headless=True,

@@ -78,8 +78,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     from . import websocket_api as ws_api
     ws_api.async_setup(hass)
 
-    # Install Chromium on first load
-    await _ensure_chromium_installed(hass)
+    # Install Chromium in background (don't block setup)
+    hass.async_create_task(_ensure_chromium_installed(hass))
 
     return True
 
