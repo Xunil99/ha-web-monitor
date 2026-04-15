@@ -1,0 +1,22 @@
+name: "Web Monitor Browser"
+version: "0.1.0"
+slug: "web_monitor_browser"
+description: "Headless browser service for Web Monitor integration"
+url: "https://github.com/Xunil99/ha-web-monitor"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+  - i386
+startup: application
+boot: auto
+ports:
+  8099/tcp: 8099
+  8098/tcp: 8098
+ports_description:
+  8099/tcp: "REST API"
+  8098/tcp: "WebSocket (screenshot streaming)"
+map:
+  - config:rw
+options: {}
+schema: {}
