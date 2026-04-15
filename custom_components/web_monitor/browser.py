@@ -1,31 +1,21 @@
-"""Playwright browser wrapper for Web Monitor."""
+"""HTTP client wrapper for the Web Monitor Browser Add-on."""
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass, field
 from datetime import datetime
+
+import aiohttp
 
 from .const import (
     EXTRACT_ATTRIBUTE,
     EXTRACT_INNER_HTML,
     EXTRACT_TEXT,
-    STEP_CLICK,
-    STEP_FILL,
-    STEP_GOTO,
-    STEP_SELECT,
-    STEP_WAIT,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
-BROWSER_ARGS = [
-    "--disable-gpu",
-    "--no-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-background-networking",
-    "--disable-extensions",
-]
+DEFAULT_ADDON_URL = "http://localhost:8099"
 
 
 @dataclass
@@ -39,14 +29,21 @@ class ScrapeResult:
 
 
 class BrowserWrapper:
-    """Manages Playwright browser lifecycle and step execution."""
+    """HTTP client that communicates with the Web Monitor Browser Add-on."""
 
-    def __init__(self, storage_dir: str) -> None:
-        self._storage_dir = storage_dir
-        os.makedirs(storage_dir, exist_ok=True)
+    def __init__(self, addon_url: str = DEFAULT_ADDON_URL) -> None:
+        self._addon_url = addon_url.rstrip("/")
 
-    def _storage_state_path(self, monitor_id: str) -> str:
-        return os.path.join(self._storage_dir, f"{monitor_id}_state.json")
+    async def check_addon_available(self) -> bool:
+        """Check if the add-on is running."""
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{self._addon_url}/health", timeout=aiohttp.ClientTimeout(total=5)
+                ) as resp:
+                    return resp.status == 200
+        except Exception:
+            return False
 
     async def replay_and_extract(
         self,
@@ -57,64 +54,49 @@ class BrowserWrapper:
         persist_session: bool = True,
         save_screenshot: bool = False,
     ) -> ScrapeResult:
-        timeout_ms = timeout * 1000
-        state_path = self._storage_state_path(monitor_id)
+        """Send scrape request to the add-on."""
+        payload = {
+            "steps": steps,
+            "target": {
+                "selector": target.get("selector", ""),
+                "extract": target.get("extract", "text_content"),
+            },
+            "timeout": timeout,
+            "monitor_id": monitor_id,
+            "persist_session": persist_session,
+            "save_screenshot": save_screenshot,
+        }
+        if target.get("attribute"):
+            payload["target"]["attribute"] = target["attribute"]
 
-        from playwright.async_api import async_playwright
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self._addon_url}/scrape",
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=timeout + 30),
+                ) as resp:
+                    if resp.status != 200:
+                        return ScrapeResult(
+                            success=False,
+                            error=f"Add-on returned HTTP {resp.status}",
+                        )
+                    data = await resp.json()
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True, args=BROWSER_ARGS)
-            try:
-                storage = state_path if persist_session and os.path.exists(state_path) else None
-                context = await browser.new_context(
-                    viewport={"width": 1280, "height": 720},
-                    storage_state=storage,
-                )
-                page = await context.new_page()
+            if not data.get("success"):
+                return ScrapeResult(success=False, error=data.get("error", "Unknown error"))
 
-                for step in steps:
-                    await self._execute_step(page, step, timeout_ms)
+            return ScrapeResult(
+                success=True,
+                value=data.get("value"),
+            )
 
-                element = await page.wait_for_selector(target["selector"], timeout=timeout_ms)
-                value = await self._extract_value(element, target)
-
-                screenshot = None
-                if save_screenshot:
-                    screenshot = await page.screenshot(full_page=False)
-
-                if persist_session:
-                    await context.storage_state(path=state_path)
-
-                return ScrapeResult(success=True, value=value, screenshot=screenshot)
-
-            except Exception as err:
-                _LOGGER.error("Scraping failed: %s", err)
-                return ScrapeResult(success=False, error=str(err))
-            finally:
-                await browser.close()
-
-    async def _execute_step(self, page, step: dict, timeout_ms: int) -> None:
-        action = step["action"]
-        if action == STEP_GOTO:
-            await page.goto(step["url"], wait_until="networkidle", timeout=timeout_ms)
-        elif action == STEP_CLICK:
-            await page.click(step["selector"], timeout=timeout_ms)
-        elif action == STEP_FILL:
-            await page.fill(step["selector"], step["value"], timeout=timeout_ms)
-        elif action == STEP_WAIT:
-            await page.wait_for_selector(step["selector"], timeout=timeout_ms)
-        elif action == STEP_SELECT:
-            await page.select_option(step["selector"], step["value"], timeout=timeout_ms)
-        else:
-            _LOGGER.warning("Unknown step action: %s", action)
-
-    async def _extract_value(self, element, target: dict) -> str | None:
-        extract = target.get("extract", EXTRACT_TEXT)
-        if extract == EXTRACT_TEXT:
-            return await element.text_content()
-        elif extract == EXTRACT_INNER_HTML:
-            return await element.inner_html()
-        elif extract == EXTRACT_ATTRIBUTE:
-            attr = target.get("attribute", "")
-            return await element.get_attribute(attr)
-        return None
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Failed to reach Web Monitor Browser add-on: %s", err)
+            return ScrapeResult(
+                success=False,
+                error=f"Add-on not reachable: {err}. Is the Web Monitor Browser add-on installed and running?",
+            )
+        except Exception as err:
+            _LOGGER.error("Scraping failed: %s", err)
+            return ScrapeResult(success=False, error=str(err))

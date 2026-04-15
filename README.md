@@ -11,22 +11,30 @@ Browse to any web page, visually select an element, and monitor its value on a s
 - Optional screenshot capture
 - Session persistence between scraping runs
 
-## Installation via HACS
+## Installation
 
-1. In HACS auf die drei Punkte oben rechts klicken > "Benutzerdefinierte Repositories"
+Die Integration besteht aus zwei Teilen: einem **Add-on** (Browser-Service) und einer **Custom Integration**.
+
+### Schritt 1: Add-on installieren
+
+1. In HA: Settings > Add-ons > Add-on Store > drei Punkte > Repositories
+2. Repository-URL eingeben: `https://github.com/Xunil99/ha-web-monitor`
+3. "Web Monitor Browser" Add-on installieren und starten
+4. Das Add-on stellt einen headless Chromium-Browser auf Port 8099 bereit
+
+### Schritt 2: Integration installieren (HACS)
+
+1. In HACS > drei Punkte > "Benutzerdefinierte Repositories"
 2. URL `https://github.com/Xunil99/ha-web-monitor` eingeben, Kategorie "Integration"
 3. "Web Monitor" suchen und installieren
 4. Home Assistant neu starten
 5. Settings > Devices & Services > Add Integration > "Web Monitor"
 
-## Installation (manuell)
+### Schritt 2 alternativ: Manuelle Installation
 
-1. `custom_components/web_monitor/` in dein HA `config/custom_components/` Verzeichnis kopieren
-   (z.B. via Samba-Share, SSH Add-on, oder File Editor Add-on)
+1. `custom_components/web_monitor/` in dein HA `config/custom_components/` kopieren
 2. Home Assistant neu starten
 3. Settings > Devices & Services > Add Integration > "Web Monitor"
-
-Python-Pakete (`playwright`, `aiosqlite`) und der Chromium-Browser werden beim ersten Start **automatisch** installiert. Der erste Start kann 1-2 Minuten dauern (~150MB Chromium-Download).
 
 ## Usage
 
@@ -46,8 +54,21 @@ Python-Pakete (`playwright`, `aiosqlite`) und der Chromium-Browser werden beim e
 | `web_monitor.get_history` | Get change history (returns JSON) |
 | `web_monitor.clear_history` | Delete history |
 
+## Architektur
+
+```
+HA Add-on (Docker)              Custom Integration
+┌─────────────────────┐         ┌──────────────────┐
+│ Playwright+Chromium  │◄─HTTP──│ Sensor, Panel,   │
+│ FastAPI auf :8099    │        │ Config Flow      │
+└─────────────────────┘         └──────────────────┘
+```
+
+Das Add-on laeuft als Docker-Container und stellt Playwright/Chromium bereit.
+Die Integration kommuniziert per HTTP mit dem Add-on.
+
 ## Requirements
 
 - Home Assistant OS 2024.1+ (oder Docker/Core)
-- ~200-400 MB RAM for Chromium during scraping
-- ~150 MB Festplattenspeicher fuer Chromium (wird automatisch installiert)
+- Web Monitor Browser Add-on (wird mitgeliefert)
+- ~200-400 MB RAM fuer Chromium im Add-on Container
