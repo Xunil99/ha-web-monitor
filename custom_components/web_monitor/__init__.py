@@ -1,8 +1,10 @@
 """The Web Monitor integration."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import subprocess
 
 import voluptuous as vol
 
@@ -28,12 +30,56 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 
+async def _ensure_chromium_installed(hass: HomeAssistant) -> None:
+    """Ensure Playwright's Chromium browser is installed."""
+    if hass.data.get(f"{DOMAIN}_chromium_checked"):
+        return
+
+    def _check_and_install():
+        """Check for Chromium and install if missing (runs in executor)."""
+        try:
+            # Check if chromium is already installed
+            result = subprocess.run(
+                ["python3", "-m", "playwright", "install", "--dry-run", "chromium"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if "is already installed" in result.stdout:
+                _LOGGER.debug("Playwright Chromium already installed")
+                return
+
+            # Install chromium with system deps
+            _LOGGER.info("Installing Playwright Chromium browser (first run, ~150MB download)...")
+            subprocess.run(
+                ["python3", "-m", "playwright", "install", "chromium"],
+                capture_output=True, text=True, timeout=600,
+            )
+            _LOGGER.info("Playwright Chromium installed successfully")
+        except FileNotFoundError:
+            # python3 not in PATH, try playwright directly
+            try:
+                subprocess.run(
+                    ["playwright", "install", "chromium"],
+                    capture_output=True, text=True, timeout=600,
+                )
+                _LOGGER.info("Playwright Chromium installed successfully")
+            except Exception as err:
+                _LOGGER.error("Failed to install Playwright Chromium: %s", err)
+        except Exception as err:
+            _LOGGER.error("Failed to install Playwright Chromium: %s", err)
+
+    await hass.async_add_executor_job(_check_and_install)
+    hass.data[f"{DOMAIN}_chromium_checked"] = True
+
+
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Web Monitor component."""
     hass.data.setdefault(DOMAIN, {})
 
     from . import websocket_api as ws_api
     ws_api.async_setup(hass)
+
+    # Install Chromium on first load
+    await _ensure_chromium_installed(hass)
 
     return True
 

@@ -11,16 +11,14 @@ Browse to any web page, visually select an element, and monitor its value on a s
 - Optional screenshot capture
 - Session persistence between scraping runs
 
-## Installation
+## Installation (HAOS)
 
 1. Copy `custom_components/web_monitor/` to your HA `config/custom_components/` directory
-2. Install Playwright's Chromium browser:
-   ```bash
-   pip install playwright==1.49.1 aiosqlite==0.20.0
-   playwright install chromium --with-deps
-   ```
-3. Restart Home Assistant
-4. Go to Settings > Devices & Services > Add Integration > "Web Monitor"
+   (z.B. via Samba-Share, SSH Add-on, oder File Editor Add-on)
+2. Restart Home Assistant
+3. Go to Settings > Devices & Services > Add Integration > "Web Monitor"
+
+Python-Pakete (`playwright`, `aiosqlite`) und der Chromium-Browser werden beim ersten Start **automatisch** installiert. Der erste Start kann 1-2 Minuten dauern (~150MB Chromium-Download).
 
 ## Usage
 
@@ -42,6 +40,6 @@ Browse to any web page, visually select an element, and monitor its value on a s
 
 ## Requirements
 
-- Home Assistant 2024.1+
+- Home Assistant OS 2024.1+ (oder Docker/Core)
 - ~200-400 MB RAM for Chromium during scraping
-- Playwright + Chromium installed on the HA host
+- ~150 MB Festplattenspeicher fuer Chromium (wird automatisch installiert)
