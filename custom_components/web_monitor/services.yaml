@@ -1,0 +1,41 @@
+refresh:
+  name: Refresh
+  description: Force an immediate scraping run for a monitor.
+  fields:
+    monitor_id:
+      name: Monitor ID
+      description: The config entry ID of the monitor to refresh.
+      required: true
+      selector:
+        text:
+
+get_history:
+  name: Get History
+  description: Retrieve the change history for a monitor.
+  fields:
+    monitor_id:
+      name: Monitor ID
+      description: The config entry ID of the monitor.
+      required: true
+      selector:
+        text:
+    limit:
+      name: Limit
+      description: Maximum number of entries to return.
+      required: false
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 10000
+
+clear_history:
+  name: Clear History
+  description: Delete all history entries for a monitor.
+  fields:
+    monitor_id:
+      name: Monitor ID
+      description: The config entry ID of the monitor.
+      required: true
+      selector:
+        text:
