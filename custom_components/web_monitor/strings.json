@@ -1,0 +1,45 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add Web Monitor",
+        "description": "Configure a new web page monitor. After creating, use the Web Monitor panel to browse to the page and select the element to watch.",
+        "data": {
+          "monitor_name": "Monitor Name",
+          "interval": "Check Interval (seconds)",
+          "timeout": "Page Load Timeout (seconds)",
+          "save_screenshots": "Save Screenshots",
+          "persist_session": "Persist Browser Session",
+          "history_days": "Keep History (days)"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This monitor is already configured"
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Force an immediate scraping run for a monitor."
+    },
+    "get_history": {
+      "name": "Get History",
+      "description": "Retrieve the change history for a monitor.",
+      "fields": {
+        "monitor_id": { "name": "Monitor ID", "description": "The monitor to get history for." },
+        "limit": { "name": "Limit", "description": "Maximum number of entries to return." }
+      }
+    },
+    "clear_history": {
+      "name": "Clear History",
+      "description": "Delete all history entries for a monitor.",
+      "fields": {
+        "monitor_id": { "name": "Monitor ID", "description": "The monitor to clear history for." }
+      }
+    }
+  }
+}

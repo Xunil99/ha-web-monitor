@@ -1,0 +1,12 @@
+{
+  "domain": "web_monitor",
+  "name": "Web Monitor",
+  "version": "0.1.0",
+  "codeowners": [],
+  "dependencies": ["frontend"],
+  "documentation": "https://github.com/Xunil99/ha-web-monitor",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "config_flow": true,
+  "requirements": ["playwright==1.49.1", "aiosqlite==0.20.0"]
+}

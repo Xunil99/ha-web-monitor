@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Web Monitor hinzufügen",
+        "description": "Neuen Webseiten-Monitor konfigurieren. Nach dem Erstellen das Web Monitor Panel verwenden, um zur Seite zu navigieren und das zu überwachende Element auszuwählen.",
+        "data": {
+          "monitor_name": "Monitor-Name",
+          "interval": "Prüf-Intervall (Sekunden)",
+          "timeout": "Seitenladezeit-Limit (Sekunden)",
+          "save_screenshots": "Screenshots speichern",
+          "persist_session": "Browser-Session beibehalten",
+          "history_days": "Verlauf aufbewahren (Tage)"
+        }
+      }
+    },
+    "error": { "unknown": "Unerwarteter Fehler" },
+    "abort": { "already_configured": "Dieser Monitor ist bereits konfiguriert" }
+  }
+}
