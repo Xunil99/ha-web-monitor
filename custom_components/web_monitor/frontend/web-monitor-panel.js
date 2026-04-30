@@ -22,6 +22,8 @@ class WebMonitorPanel extends LitElement {
       _filterPattern: { type: String },
       _filterEndPattern: { type: String },
       _filterPreview: { type: String },
+      _lastClicked: { type: Object },
+      _typeText: { type: String },
     };
   }
 
@@ -44,6 +46,8 @@ class WebMonitorPanel extends LitElement {
     this._filterPattern = "";
     this._filterEndPattern = "";
     this._filterPreview = "";
+    this._lastClicked = null;
+    this._typeText = "";
     this._msgId = 1;
   }
 
@@ -156,6 +160,9 @@ class WebMonitorPanel extends LitElement {
         // Normal mode: actually click and record the step
         const res = await this._wsCall("web_monitor/click", { x, y });
         this._image = "data:image/png;base64," + res.image;
+        if (res.element && res.element.selector) {
+          this._lastClicked = res.element;
+        }
         this._updateSteps();
       }
     } catch (err) {
@@ -190,6 +197,29 @@ class WebMonitorPanel extends LitElement {
     } catch (err) {
       console.error("Scroll failed:", err);
       this._error = "Scroll fehlgeschlagen: " + err.message;
+    }
+    this._loading = false;
+  }
+
+  async _sendText() {
+    if (!this._typeText) return;
+    if (!this._lastClicked || !this._lastClicked.selector) {
+      this._error = "Bitte zuerst auf das Eingabefeld klicken, in das der Text eingegeben werden soll.";
+      return;
+    }
+    this._loading = true;
+    this._error = "";
+    try {
+      const res = await this._wsCall("web_monitor/fill", {
+        selector: this._lastClicked.selector,
+        value: this._typeText,
+      });
+      this._image = "data:image/png;base64," + res.image;
+      this._updateSteps();
+      this._typeText = "";
+    } catch (err) {
+      console.error("Fill failed:", err);
+      this._error = "Texteingabe fehlgeschlagen: " + (err.message || JSON.stringify(err));
     }
     this._loading = false;
   }
@@ -359,7 +389,23 @@ class WebMonitorPanel extends LitElement {
             <button @click=${() => this._pressKey('PageDown')} title="Page Down">PgDn</button>
             <button @click=${() => this._pressKey('Home')} title="Anfang">⇱</button>
             <button @click=${() => this._pressKey('End')} title="Ende">⇲</button>
+            <button @click=${() => this._pressKey('Enter')} title="Enter">↵ Enter</button>
+            <button @click=${() => this._pressKey('Tab')} title="Tab">⇥ Tab</button>
             <span class="hint">Tipp: Mausrad ueber dem Bild scrollt auch</span>
+          </div>
+          <div class="type-controls">
+            <label>Texteingabe:</label>
+            <input type="text"
+              placeholder=${this._lastClicked ? "Text eingeben und Enter druecken" : "Erst auf ein Eingabefeld klicken"}
+              ?disabled=${!this._lastClicked || this._loading}
+              .value=${this._typeText}
+              @input=${e => this._typeText = e.target.value}
+              @keydown=${e => { if (e.key === 'Enter') { e.preventDefault(); this._sendText(); } }}
+            />
+            <button @click=${this._sendText} ?disabled=${!this._lastClicked || !this._typeText || this._loading}>
+              Senden
+            </button>
+            ${this._lastClicked ? html`<span class="last-clicked">→ <code>${this._lastClicked.selector}</code></span>` : ""}
           </div>
           <div class="browser-view">
             <img src=${this._image}
@@ -504,6 +550,26 @@ class WebMonitorPanel extends LitElement {
       .scroll-controls .hint {
         margin-left: 12px; font-size: 12px;
         color: var(--secondary-text-color);
+      }
+      .type-controls {
+        display: flex; gap: 8px; align-items: center;
+        flex-wrap: wrap; margin-bottom: 8px;
+        padding: 8px; background: var(--secondary-background-color);
+        border-radius: 4px;
+      }
+      .type-controls label { font-weight: 500; min-width: 90px; }
+      .type-controls input[type="text"] {
+        flex: 1; min-width: 200px; padding: 6px 10px;
+        border: 1px solid var(--divider-color); border-radius: 4px;
+        background: var(--card-background-color);
+        color: var(--primary-text-color);
+      }
+      .type-controls .last-clicked {
+        font-size: 12px; color: var(--secondary-text-color);
+        flex-basis: 100%;
+      }
+      .type-controls .last-clicked code {
+        background: transparent; font-size: 11px;
       }
       .browser-view {
         border: 1px solid var(--divider-color); border-radius: 4px;
