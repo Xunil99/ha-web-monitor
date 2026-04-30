@@ -98,6 +98,7 @@ class WebMonitorPanel extends LitElement {
 
   async _handleImageClick(e) {
     if (!this._sessionActive) return;
+    e.preventDefault();
     const rect = e.target.getBoundingClientRect();
     const scaleX = 1280 / rect.width;
     const scaleY = 720 / rect.height;
@@ -105,23 +106,26 @@ class WebMonitorPanel extends LitElement {
     const y = Math.round((e.clientY - rect.top) * scaleY);
 
     this._loading = true;
+    this._error = "";
     try {
       if (this._pickerActive) {
-        await this._wsCall("web_monitor/click", { x, y });
-        const pr = await this._wsCall("web_monitor/get_picker_result");
+        // In picker mode: query element info without clicking
+        const pr = await this._wsCall("web_monitor/pick", { x, y });
         if (pr.result) {
           this._pickerResult = pr.result;
           this._pickerActive = false;
+        } else {
+          this._error = "Kein Element an dieser Position gefunden.";
         }
-        const res = await this._wsCall("web_monitor/screenshot");
-        this._image = "data:image/png;base64," + res.image;
       } else {
+        // Normal mode: actually click and record the step
         const res = await this._wsCall("web_monitor/click", { x, y });
         this._image = "data:image/png;base64," + res.image;
         this._updateSteps();
       }
-    } catch (e) {
-      console.error("Click failed:", e);
+    } catch (err) {
+      console.error("Click failed:", err);
+      this._error = "Klick fehlgeschlagen: " + (err.message || JSON.stringify(err));
     }
     this._loading = false;
   }
@@ -274,9 +278,11 @@ class WebMonitorPanel extends LitElement {
           </div>
           <div class="browser-view">
             <img src=${this._image}
+              draggable="false"
+              @dragstart=${(e) => e.preventDefault()}
               @click=${this._handleImageClick}
               @wheel=${this._handleWheel}
-              style="cursor: ${this._pickerActive ? 'crosshair' : 'pointer'}"
+              style="cursor: ${this._pickerActive ? 'crosshair' : 'pointer'}; user-select: none; -webkit-user-drag: none;"
             />
           </div>
         ` : html`

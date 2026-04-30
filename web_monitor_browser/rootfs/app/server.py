@@ -195,10 +195,26 @@ class BrowserSession:
         self._steps.append({"action": "fill", "selector": selector, "value": value})
 
     async def activate_picker(self):
-        await self._page.evaluate(PICKER_JS)
+        # Picker is frontend-state only; backend just needs to be able to
+        # query element-at-point on demand. No JS injection needed.
+        return None
 
     async def get_picker_result(self) -> dict | None:
-        return await self._page.evaluate("window.__wmPickerResult")
+        # Legacy endpoint - kept for compatibility but unused in v0.3+
+        return None
+
+    async def pick_element_at(self, x: int, y: int) -> dict | None:
+        """Return info about the element at the given viewport coordinates."""
+        return await self._page.evaluate(f"""() => {{
+            const el = document.elementFromPoint({x}, {y});
+            if (!el) return null;
+            return {{
+                selector: ({SELECTOR_JS})(el),
+                tag: el.tagName.toLowerCase(),
+                text: el.textContent?.trim()?.substring(0, 200) || '',
+                rect: el.getBoundingClientRect().toJSON(),
+            }};
+        }}""")
 
     @property
     def steps(self) -> list[dict]:
@@ -363,6 +379,16 @@ async def activate_picker(session_id: str):
         raise HTTPException(404, "No active session")
     await session.activate_picker()
     return {"status": "picker_active"}
+
+
+@app.post("/session/{session_id}/pick")
+async def pick_element(session_id: str, req: ClickRequest):
+    """Get element info at given coordinates without clicking."""
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "No active session")
+    result = await session.pick_element_at(req.x, req.y)
+    return {"result": result}
 
 
 @app.get("/session/{session_id}/picker/result")
