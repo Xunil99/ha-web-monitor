@@ -1,33 +1,31 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# Install system dependencies
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
-    chromium \
-    chromium-chromedriver \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont \
-    nodejs \
-    npm
+# This add-on uses Playwright's official Docker image as runtime via switching base.
+# However, HA add-on framework needs HA base for s6-overlay/bashio.
+# Compromise: install everything fresh on Debian-based HA base image.
 
-# Install Python packages
-RUN pip3 install --no-cache-dir --break-system-packages \
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install Python and Playwright dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python packages in a virtualenv to avoid PEP 668 issues
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --no-cache-dir \
     playwright==1.49.1 \
     fastapi==0.115.0 \
-    uvicorn[standard]==0.32.0 \
-    websockets==13.1
+    "uvicorn[standard]==0.32.0"
 
-# Install Playwright browsers
-ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN playwright install chromium --with-deps 2>/dev/null || true
-
-# Alternative: use system chromium if playwright install fails
-ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# Install Chromium and all required system libraries via Playwright
+RUN playwright install --with-deps chromium
 
 # Copy application
 COPY rootfs/ /
