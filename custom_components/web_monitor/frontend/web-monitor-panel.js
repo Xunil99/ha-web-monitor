@@ -56,9 +56,16 @@ class WebMonitorPanel extends LitElement {
     return this.hass.callWS({ type, ...data });
   }
 
+  _normalizeUrl(url) {
+    if (!url) return url;
+    if (/^(https?|file|about):/.test(url)) return url;
+    return "https://" + url;
+  }
+
   async _startSession() {
     this._loading = true;
     this._error = "";
+    this._url = this._normalizeUrl(this._url);
     try {
       await this._wsCall("web_monitor/start_session", { url: this._url || "about:blank" });
       this._sessionActive = true;
@@ -77,6 +84,7 @@ class WebMonitorPanel extends LitElement {
     if (!this._url) return;
     this._loading = true;
     this._error = "";
+    this._url = this._normalizeUrl(this._url);
     try {
       const res = await this._wsCall("web_monitor/navigate", { url: this._url });
       this._image = "data:image/png;base64," + res.image;

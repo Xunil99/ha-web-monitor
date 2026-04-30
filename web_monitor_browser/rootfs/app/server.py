@@ -15,6 +15,15 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 _LOGGER = logging.getLogger(__name__)
 
+
+def normalize_url(url: str) -> str:
+    """Prepend https:// if URL has no scheme."""
+    if not url or url == "about:blank":
+        return url
+    if url.startswith(("http://", "https://", "about:", "file://")):
+        return url
+    return "https://" + url
+
 # CSS selector generator JS
 SELECTOR_JS = """
 (element) => {
@@ -140,6 +149,7 @@ class BrowserSession:
             viewport={"width": 1280, "height": 720}
         )
         self._page = await self._context.new_page()
+        url = normalize_url(url)
         if url != "about:blank":
             await self._page.goto(url, wait_until="networkidle", timeout=30000)
             self._steps.append({"action": "goto", "url": url})
@@ -149,6 +159,7 @@ class BrowserSession:
         return base64.b64encode(png).decode()
 
     async def navigate(self, url: str):
+        url = normalize_url(url)
         await self._page.goto(url, wait_until="networkidle", timeout=30000)
         self._steps.append({"action": "goto", "url": url})
 
@@ -374,7 +385,7 @@ async def scrape(req: ScrapeRequest):
                     s = step.model_dump(exclude_none=True)
                     action = s["action"]
                     if action == "goto":
-                        await page.goto(s["url"], wait_until="networkidle", timeout=timeout_ms)
+                        await page.goto(normalize_url(s["url"]), wait_until="networkidle", timeout=timeout_ms)
                     elif action == "click":
                         await page.click(s["selector"], timeout=timeout_ms)
                     elif action == "fill":
