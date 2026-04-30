@@ -218,6 +218,27 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Web Monitor Browser", lifespan=lifespan)
 
 
+# Catch-all exception handler: return JSON with traceback instead of plain-text 500
+import traceback as _traceback
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = _traceback.format_exc()
+    _LOGGER.error("Unhandled error in %s %s:\n%s", request.method, request.url.path, tb)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": str(exc),
+            "error_type": exc.__class__.__name__,
+            "traceback": tb,
+        },
+    )
+
+
 @app.get("/")
 async def root():
     return {

@@ -80,7 +80,16 @@ async def _addon_request(method: str, path: str, json: dict = None, timeout: int
         async with getattr(session, method)(url, **kwargs) as resp:
             if resp.status == 404:
                 raise ValueError("No active browser session. Start a session first.")
-            return await resp.json()
+            # Try JSON first, fall back to text for non-JSON error responses
+            try:
+                data = await resp.json(content_type=None)
+            except Exception:
+                text = await resp.text()
+                raise RuntimeError(f"HTTP {resp.status}: {text[:500]}")
+            if resp.status >= 400 and isinstance(data, dict):
+                err = data.get("error") or data.get("detail") or "Unknown add-on error"
+                raise RuntimeError(f"HTTP {resp.status}: {err}")
+            return data
 
 
 @websocket_api.websocket_command({
