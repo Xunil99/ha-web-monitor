@@ -40,6 +40,7 @@ def async_setup(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_scroll)
     websocket_api.async_register_command(hass, ws_key)
     websocket_api.async_register_command(hass, ws_pick)
+    websocket_api.async_register_command(hass, ws_filter_test)
 
 
 _RESOLVED_ADDON_URL: str | None = None
@@ -215,6 +216,9 @@ async def ws_get_steps(hass, connection, msg):
     vol.Required("target_selector"): str,
     vol.Optional("target_extract", default="text_content"): str,
     vol.Optional("target_attribute", default=""): str,
+    vol.Optional("filter_mode", default="none"): str,
+    vol.Optional("filter_pattern", default=""): str,
+    vol.Optional("filter_end_pattern", default=""): str,
 })
 @websocket_api.async_response
 async def ws_save_monitor(hass, connection, msg):
@@ -238,6 +242,9 @@ async def ws_save_monitor(hass, connection, msg):
     new_data["target_extract"] = msg.get("target_extract", "text_content")
     if msg.get("target_attribute"):
         new_data["target_attribute"] = msg["target_attribute"]
+    new_data["filter_mode"] = msg.get("filter_mode", "none")
+    new_data["filter_pattern"] = msg.get("filter_pattern", "")
+    new_data["filter_end_pattern"] = msg.get("filter_end_pattern", "")
 
     hass.config_entries.async_update_entry(entry, data=new_data)
 
@@ -293,6 +300,29 @@ async def ws_pick(hass, connection, msg):
     try:
         data = await _addon_request("post", f"/session/{session_id}/pick", json={"x": msg["x"], "y": msg["y"]})
         connection.send_result(msg["id"], {"result": data.get("result")})
+    except Exception as err:
+        connection.send_error(msg["id"], "addon_error", str(err))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "web_monitor/filter_test",
+    vol.Required("text"): str,
+    vol.Required("mode"): str,
+    vol.Optional("pattern", default=""): str,
+    vol.Optional("end_pattern", default=""): str,
+})
+@websocket_api.async_response
+async def ws_filter_test(hass, connection, msg):
+    """Apply a filter to text and return preview. Calls add-on."""
+    payload = {
+        "text": msg["text"],
+        "mode": msg["mode"],
+        "pattern": msg.get("pattern", ""),
+        "end_pattern": msg.get("end_pattern", ""),
+    }
+    try:
+        data = await _addon_request("post", "/filter/test", json=payload)
+        connection.send_result(msg["id"], {"result": data.get("result", "")})
     except Exception as err:
         connection.send_error(msg["id"], "addon_error", str(err))
 

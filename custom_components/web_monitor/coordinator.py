@@ -61,7 +61,12 @@ class WebMonitorCoordinator(DataUpdateCoordinator[dict]):
         target = {
             "selector": self._config.get(CONF_TARGET_SELECTOR, ""),
             "extract": self._config.get(CONF_TARGET_EXTRACT, "text_content"),
+            "filter_mode": self._config.get("filter_mode", "none"),
+            "filter_pattern": self._config.get("filter_pattern", ""),
+            "filter_end_pattern": self._config.get("filter_end_pattern", ""),
         }
+        if self._config.get("target_attribute"):
+            target["attribute"] = self._config["target_attribute"]
 
         if not target["selector"]:
             return {"value": None, "success": True, "message": "No target configured"}

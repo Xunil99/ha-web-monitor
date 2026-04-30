@@ -11,6 +11,15 @@ CONF_SAVE_SCREENSHOTS = "save_screenshots"
 CONF_HISTORY_DAYS = "history_days"
 CONF_TIMEOUT = "timeout"
 CONF_PERSIST_SESSION = "persist_session"
+CONF_FILTER_MODE = "filter_mode"
+CONF_FILTER_PATTERN = "filter_pattern"
+CONF_FILTER_END_PATTERN = "filter_end_pattern"
+
+FILTER_NONE = "none"
+FILTER_REGEX = "regex"
+FILTER_BEFORE = "before"
+FILTER_AFTER = "after"
+FILTER_BETWEEN = "between"
 
 DEFAULT_INTERVAL = 3600
 DEFAULT_TIMEOUT = 60

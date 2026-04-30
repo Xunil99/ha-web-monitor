@@ -18,6 +18,10 @@ class WebMonitorPanel extends LitElement {
       _extractAttribute: { type: String },
       _error: { type: String },
       _success: { type: String },
+      _filterMode: { type: String },
+      _filterPattern: { type: String },
+      _filterEndPattern: { type: String },
+      _filterPreview: { type: String },
     };
   }
 
@@ -36,6 +40,10 @@ class WebMonitorPanel extends LitElement {
     this._extractAttribute = "";
     this._error = "";
     this._success = "";
+    this._filterMode = "none";
+    this._filterPattern = "";
+    this._filterEndPattern = "";
+    this._filterPreview = "";
     this._msgId = 1;
   }
 
@@ -116,6 +124,11 @@ class WebMonitorPanel extends LitElement {
         if (pr.result) {
           this._pickerResult = pr.result;
           this._pickerActive = false;
+          // Reset filter on new selection, set preview to full text
+          this._filterMode = "none";
+          this._filterPattern = "";
+          this._filterEndPattern = "";
+          this._filterPreview = pr.result.text || "";
         } else {
           this._error = "Kein Element an dieser Position gefunden.";
         }
@@ -192,6 +205,35 @@ class WebMonitorPanel extends LitElement {
     }
   }
 
+  async _updateFilterPreview() {
+    if (!this._pickerResult) {
+      this._filterPreview = "";
+      return;
+    }
+    if (this._filterMode === "none" || !this._filterPattern) {
+      this._filterPreview = this._pickerResult.text || "";
+      return;
+    }
+    try {
+      const res = await this._wsCall("web_monitor/filter_test", {
+        text: this._pickerResult.text || "",
+        mode: this._filterMode,
+        pattern: this._filterPattern,
+        end_pattern: this._filterEndPattern,
+      });
+      this._filterPreview = res.result ?? "";
+    } catch (err) {
+      console.error("Filter test failed:", err);
+      this._filterPreview = "(Fehler in Filter)";
+    }
+  }
+
+  _onFilterChange() {
+    // Schedule preview update with small debounce
+    if (this._filterDebounce) clearTimeout(this._filterDebounce);
+    this._filterDebounce = setTimeout(() => this._updateFilterPreview(), 250);
+  }
+
   async _saveMonitor() {
     if (!this._selectedMonitor) {
       this._error = "Bitte zuerst einen Monitor oben auswaehlen.";
@@ -209,6 +251,9 @@ class WebMonitorPanel extends LitElement {
         entry_id: this._selectedMonitor,
         target_selector: this._pickerResult.selector,
         target_extract: this._extractType,
+        filter_mode: this._filterMode,
+        filter_pattern: this._filterPattern,
+        filter_end_pattern: this._filterEndPattern,
       };
       if (this._extractType === "attribute" && this._extractAttribute) {
         data.target_attribute = this._extractAttribute;
@@ -319,7 +364,7 @@ class WebMonitorPanel extends LitElement {
 
             <div class="extract-options">
               <label>Extrahieren:</label>
-              <select @change=${e => this._extractType = e.target.value}>
+              <select @change=${e => { this._extractType = e.target.value; this._updateFilterPreview(); }}>
                 <option value="text_content" selected>Textinhalt</option>
                 <option value="inner_html">Inner HTML</option>
                 <option value="attribute">Attribut</option>
@@ -330,6 +375,36 @@ class WebMonitorPanel extends LitElement {
                   @input=${e => this._extractAttribute = e.target.value}
                 />
               ` : ""}
+            </div>
+
+            <div class="filter-options">
+              <label>Textfilter:</label>
+              <select @change=${e => { this._filterMode = e.target.value; this._updateFilterPreview(); }}>
+                <option value="none" ?selected=${this._filterMode === "none"}>Voller Text</option>
+                <option value="regex" ?selected=${this._filterMode === "regex"}>Regex (erste Capture-Gruppe)</option>
+                <option value="before" ?selected=${this._filterMode === "before"}>Vor Trennzeichen</option>
+                <option value="after" ?selected=${this._filterMode === "after"}>Nach Trennzeichen</option>
+                <option value="between" ?selected=${this._filterMode === "between"}>Zwischen zwei Trennzeichen</option>
+              </select>
+              ${this._filterMode !== "none" ? html`
+                <input type="text"
+                  placeholder=${this._filterMode === "regex" ? "z.B. (\\d+,\\d+)" : "Trennzeichen"}
+                  .value=${this._filterPattern}
+                  @input=${e => { this._filterPattern = e.target.value; this._onFilterChange(); }}
+                />
+              ` : ""}
+              ${this._filterMode === "between" ? html`
+                <input type="text"
+                  placeholder="End-Trennzeichen"
+                  .value=${this._filterEndPattern}
+                  @input=${e => { this._filterEndPattern = e.target.value; this._onFilterChange(); }}
+                />
+              ` : ""}
+            </div>
+
+            <div class="preview">
+              <strong>Sensor-Wert (Vorschau):</strong>
+              <code>${this._filterPreview || "(leer)"}</code>
             </div>
 
             <button @click=${this._saveMonitor} class="save" ?disabled=${this._loading || !this._selectedMonitor}>
@@ -470,11 +545,29 @@ class WebMonitorPanel extends LitElement {
         background: var(--secondary-background-color);
         padding: 2px 6px; border-radius: 3px; font-size: 13px;
       }
-      .extract-options {
+      .extract-options, .filter-options {
         display: flex; gap: 8px; align-items: center;
-        margin-top: 8px;
+        margin-top: 8px; flex-wrap: wrap;
       }
-      .extract-options select, .extract-options input {
+      .filter-options label, .extract-options label {
+        font-weight: 500; min-width: 90px;
+      }
+      .preview {
+        margin-top: 12px; padding: 10px;
+        background: var(--secondary-background-color);
+        border-left: 3px solid #4caf50;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      .preview code {
+        background: transparent;
+        padding: 0;
+        color: #2e7d32;
+        font-weight: bold;
+        word-break: break-all;
+      }
+      .extract-options select, .extract-options input,
+      .filter-options select, .filter-options input {
         padding: 6px 10px; border: 1px solid var(--divider-color);
         border-radius: 4px; background: var(--card-background-color);
         color: var(--primary-text-color);

@@ -96,6 +96,46 @@ class TargetModel(BaseModel):
     selector: str
     extract: str = "text_content"
     attribute: str | None = None
+    # Text filter to extract only part of the value:
+    # - "none" (default): full text
+    # - "regex": filter_pattern is a regex; first capture group (or whole match) is returned
+    # - "before": return text BEFORE filter_pattern
+    # - "after": return text AFTER filter_pattern
+    # - "between": return text between filter_pattern and filter_end_pattern
+    filter_mode: str = "none"
+    filter_pattern: str | None = None
+    filter_end_pattern: str | None = None
+
+
+def apply_text_filter(text: str | None, mode: str, pattern: str | None, end_pattern: str | None) -> str | None:
+    """Apply a text filter to the extracted value."""
+    if text is None or not mode or mode == "none" or not pattern:
+        return text
+    import re
+    try:
+        if mode == "regex":
+            m = re.search(pattern, text)
+            if not m:
+                return text
+            return m.group(1) if m.groups() else m.group(0)
+        elif mode == "before":
+            idx = text.find(pattern)
+            return text[:idx] if idx >= 0 else text
+        elif mode == "after":
+            idx = text.find(pattern)
+            return text[idx + len(pattern):] if idx >= 0 else text
+        elif mode == "between":
+            if not end_pattern:
+                return text
+            start = text.find(pattern)
+            if start < 0:
+                return text
+            start += len(pattern)
+            end = text.find(end_pattern, start)
+            return text[start:end] if end >= 0 else text[start:]
+    except Exception as err:
+        _LOGGER.warning("Filter failed (%s): %s", mode, err)
+    return text
 
 class ScrapeRequest(BaseModel):
     steps: list[StepModel]
@@ -381,6 +421,19 @@ async def activate_picker(session_id: str):
     return {"status": "picker_active"}
 
 
+class FilterTestRequest(BaseModel):
+    text: str
+    mode: str
+    pattern: str | None = None
+    end_pattern: str | None = None
+
+
+@app.post("/filter/test")
+async def filter_test(req: FilterTestRequest):
+    """Apply filter to text and return result. Used for live preview."""
+    return {"result": apply_text_filter(req.text, req.mode, req.pattern, req.end_pattern)}
+
+
 @app.post("/session/{session_id}/pick")
 async def pick_element(session_id: str, req: ClickRequest):
     """Get element info at given coordinates without clicking."""
@@ -468,6 +521,14 @@ async def scrape(req: ScrapeRequest):
                     value = await element.get_attribute(req.target.attribute)
                 else:
                     value = await element.text_content()
+
+                # Apply optional text filter to extract just a part of the value
+                value = apply_text_filter(
+                    value,
+                    req.target.filter_mode,
+                    req.target.filter_pattern,
+                    req.target.filter_end_pattern,
+                )
 
                 screenshot_b64 = None
                 if req.save_screenshot:

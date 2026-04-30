@@ -82,6 +82,9 @@ class BrowserWrapper:
             "target": {
                 "selector": target.get("selector", ""),
                 "extract": target.get("extract", "text_content"),
+                "filter_mode": target.get("filter_mode", "none"),
+                "filter_pattern": target.get("filter_pattern", "") or None,
+                "filter_end_pattern": target.get("filter_end_pattern", "") or None,
             },
             "timeout": timeout,
             "monitor_id": monitor_id,
