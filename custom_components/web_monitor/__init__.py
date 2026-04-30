@@ -127,12 +127,15 @@ def _register_services(hass: HomeAssistant) -> None:
 
 
 async def _async_register_panel(hass: HomeAssistant) -> None:
-    """Register the Web Monitor sidebar panel."""
+    """Register the Web Monitor sidebar panel (only once)."""
     from homeassistant.components import panel_custom
     from homeassistant.components.http import StaticPathConfig
 
-    if DOMAIN in hass.data.get("frontend_panels", {}):
+    # Use our own flag to ensure panel is registered exactly once,
+    # regardless of how many config entries exist.
+    if hass.data.get(f"{DOMAIN}_panel_registered"):
         return
+    hass.data[f"{DOMAIN}_panel_registered"] = True
 
     panel_dir = os.path.join(os.path.dirname(__file__), "frontend")
     panel_url = f"/{DOMAIN}_panel"
