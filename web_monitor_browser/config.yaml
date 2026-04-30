@@ -1,5 +1,5 @@
 name: "Web Monitor Browser"
-version: "0.1.4"
+version: "0.2.0"
 slug: "web_monitor_browser"
 description: "Headless browser service for Web Monitor integration"
 url: "https://github.com/Xunil99/ha-web-monitor"

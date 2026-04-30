@@ -126,6 +126,47 @@ class WebMonitorPanel extends LitElement {
     this._loading = false;
   }
 
+  async _handleWheel(e) {
+    if (!this._sessionActive) return;
+    e.preventDefault();
+    // Throttle: only send if not already scrolling
+    if (this._scrollPending) return;
+    this._scrollPending = true;
+    try {
+      const res = await this._wsCall("web_monitor/scroll", { delta_y: Math.round(e.deltaY) });
+      this._image = "data:image/png;base64," + res.image;
+    } catch (err) {
+      console.error("Scroll failed:", err);
+    } finally {
+      this._scrollPending = false;
+    }
+  }
+
+  async _scrollBy(deltaY) {
+    if (!this._sessionActive) return;
+    this._loading = true;
+    try {
+      const res = await this._wsCall("web_monitor/scroll", { delta_y: deltaY });
+      this._image = "data:image/png;base64," + res.image;
+    } catch (err) {
+      console.error("Scroll failed:", err);
+      this._error = "Scroll fehlgeschlagen: " + err.message;
+    }
+    this._loading = false;
+  }
+
+  async _pressKey(key) {
+    if (!this._sessionActive) return;
+    this._loading = true;
+    try {
+      const res = await this._wsCall("web_monitor/key", { key });
+      this._image = "data:image/png;base64," + res.image;
+    } catch (err) {
+      console.error("Key press failed:", err);
+    }
+    this._loading = false;
+  }
+
   async _activatePicker() {
     try {
       await this._wsCall("web_monitor/activate_picker");
@@ -220,9 +261,21 @@ class WebMonitorPanel extends LitElement {
         ${this._error ? html`<div class="error">${this._error}</div>` : ""}
 
         ${this._image ? html`
+          <div class="scroll-controls">
+            <button @click=${() => this._scrollBy(-720)} title="Eine Seite hoch">↑↑</button>
+            <button @click=${() => this._scrollBy(-200)} title="Hoch">↑</button>
+            <button @click=${() => this._scrollBy(200)} title="Runter">↓</button>
+            <button @click=${() => this._scrollBy(720)} title="Eine Seite runter">↓↓</button>
+            <button @click=${() => this._pressKey('PageUp')} title="Page Up">PgUp</button>
+            <button @click=${() => this._pressKey('PageDown')} title="Page Down">PgDn</button>
+            <button @click=${() => this._pressKey('Home')} title="Anfang">⇱</button>
+            <button @click=${() => this._pressKey('End')} title="Ende">⇲</button>
+            <span class="hint">Tipp: Mausrad ueber dem Bild scrollt auch</span>
+          </div>
           <div class="browser-view">
             <img src=${this._image}
               @click=${this._handleImageClick}
+              @wheel=${this._handleWheel}
               style="cursor: ${this._pickerActive ? 'crosshair' : 'pointer'}"
             />
           </div>
@@ -317,6 +370,20 @@ class WebMonitorPanel extends LitElement {
       button.active { background: #4285f4; box-shadow: 0 0 0 2px #4285f4; }
       button.danger { background: #d32f2f; }
       button.save { background: #388e3c; margin-top: 8px; }
+      .scroll-controls {
+        display: flex; gap: 4px; align-items: center;
+        flex-wrap: wrap; margin-bottom: 8px;
+      }
+      .scroll-controls button {
+        padding: 4px 12px; font-size: 13px;
+        background: var(--secondary-background-color);
+        color: var(--primary-text-color);
+        border: 1px solid var(--divider-color);
+      }
+      .scroll-controls .hint {
+        margin-left: 12px; font-size: 12px;
+        color: var(--secondary-text-color);
+      }
       .browser-view {
         border: 1px solid var(--divider-color); border-radius: 4px;
         overflow: hidden; background: #fff;

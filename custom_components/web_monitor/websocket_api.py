@@ -37,6 +37,8 @@ def async_setup(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_get_steps)
     websocket_api.async_register_command(hass, ws_save_monitor)
     websocket_api.async_register_command(hass, ws_close_session)
+    websocket_api.async_register_command(hass, ws_scroll)
+    websocket_api.async_register_command(hass, ws_key)
 
 
 _RESOLVED_ADDON_URL: str | None = None
@@ -257,3 +259,31 @@ async def ws_close_session(hass, connection, msg):
     except Exception:
         pass
     connection.send_result(msg["id"], {"status": "closed"})
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "web_monitor/scroll",
+    vol.Required("delta_y"): int,
+})
+@websocket_api.async_response
+async def ws_scroll(hass, connection, msg):
+    session_id = hass.data[f"{DOMAIN}_sessions"].get(str(connection.context(msg).id), "default")
+    try:
+        data = await _addon_request("post", f"/session/{session_id}/scroll", json={"delta_y": msg["delta_y"]})
+        connection.send_result(msg["id"], {"image": data.get("image")})
+    except Exception as err:
+        connection.send_error(msg["id"], "addon_error", str(err))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "web_monitor/key",
+    vol.Required("key"): str,
+})
+@websocket_api.async_response
+async def ws_key(hass, connection, msg):
+    session_id = hass.data[f"{DOMAIN}_sessions"].get(str(connection.context(msg).id), "default")
+    try:
+        data = await _addon_request("post", f"/session/{session_id}/key", json={"key": msg["key"]})
+        connection.send_result(msg["id"], {"image": data.get("image")})
+    except Exception as err:
+        connection.send_error(msg["id"], "addon_error", str(err))

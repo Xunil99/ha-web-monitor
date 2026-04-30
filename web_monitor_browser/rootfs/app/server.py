@@ -163,6 +163,14 @@ class BrowserSession:
         await self._page.goto(url, wait_until="domcontentloaded", timeout=30000)
         self._steps.append({"action": "goto", "url": url})
 
+    async def scroll(self, delta_y: int):
+        """Scroll the page by delta_y pixels."""
+        await self._page.mouse.wheel(0, delta_y)
+
+    async def key_press(self, key: str):
+        """Press a keyboard key (e.g. 'PageDown', 'Tab', 'Enter')."""
+        await self._page.keyboard.press(key)
+
     async def click(self, x: int, y: int) -> dict:
         selector_info = await self._page.evaluate(f"""() => {{
             const el = document.elementFromPoint({x}, {y});
@@ -309,6 +317,34 @@ async def fill(session_id: str, req: FillRequest):
     await session.fill(req.selector, req.value)
     image = await session.screenshot_b64()
     return {"image": image, "steps": session.steps}
+
+
+class ScrollRequest(BaseModel):
+    delta_y: int
+
+
+@app.post("/session/{session_id}/scroll")
+async def scroll(session_id: str, req: ScrollRequest):
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "No active session")
+    await session.scroll(req.delta_y)
+    image = await session.screenshot_b64()
+    return {"image": image}
+
+
+class KeyRequest(BaseModel):
+    key: str
+
+
+@app.post("/session/{session_id}/key")
+async def key_press(session_id: str, req: KeyRequest):
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "No active session")
+    await session.key_press(req.key)
+    image = await session.screenshot_b64()
+    return {"image": image}
 
 
 @app.get("/session/{session_id}/screenshot")
