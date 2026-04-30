@@ -41,6 +41,7 @@ def async_setup(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_key)
     websocket_api.async_register_command(hass, ws_pick)
     websocket_api.async_register_command(hass, ws_filter_test)
+    websocket_api.async_register_command(hass, ws_select_option)
 
 
 _RESOLVED_ADDON_URL: str | None = None
@@ -300,6 +301,24 @@ async def ws_pick(hass, connection, msg):
     try:
         data = await _addon_request("post", f"/session/{session_id}/pick", json={"x": msg["x"], "y": msg["y"]})
         connection.send_result(msg["id"], {"result": data.get("result")})
+    except Exception as err:
+        connection.send_error(msg["id"], "addon_error", str(err))
+
+
+@websocket_api.websocket_command({
+    vol.Required("type"): "web_monitor/select_option",
+    vol.Required("selector"): str,
+    vol.Required("value"): str,
+})
+@websocket_api.async_response
+async def ws_select_option(hass, connection, msg):
+    session_id = hass.data[f"{DOMAIN}_sessions"].get(str(connection.context(msg).id), "default")
+    try:
+        data = await _addon_request(
+            "post", f"/session/{session_id}/select_option",
+            json={"selector": msg["selector"], "value": msg["value"]},
+        )
+        connection.send_result(msg["id"], {"image": data.get("image")})
     except Exception as err:
         connection.send_error(msg["id"], "addon_error", str(err))
 

@@ -24,6 +24,7 @@ class WebMonitorPanel extends LitElement {
       _filterPreview: { type: String },
       _lastClicked: { type: Object },
       _typeText: { type: String },
+      _selectChoice: { type: Object },
     };
   }
 
@@ -48,6 +49,7 @@ class WebMonitorPanel extends LitElement {
     this._filterPreview = "";
     this._lastClicked = null;
     this._typeText = "";
+    this._selectChoice = null;
     this._msgId = 1;
   }
 
@@ -159,9 +161,17 @@ class WebMonitorPanel extends LitElement {
       } else {
         // Normal mode: actually click and record the step
         const res = await this._wsCall("web_monitor/click", { x, y });
-        this._image = "data:image/png;base64," + res.image;
         if (res.element && res.element.selector) {
           this._lastClicked = res.element;
+          // If user clicked a <select>, show option chooser instead
+          if (res.element.is_select && res.element.options) {
+            this._selectChoice = res.element;
+          } else {
+            this._selectChoice = null;
+          }
+        }
+        if (res.image) {
+          this._image = "data:image/png;base64," + res.image;
         }
         this._updateSteps();
       }
@@ -197,6 +207,25 @@ class WebMonitorPanel extends LitElement {
     } catch (err) {
       console.error("Scroll failed:", err);
       this._error = "Scroll fehlgeschlagen: " + err.message;
+    }
+    this._loading = false;
+  }
+
+  async _chooseSelectOption(value) {
+    if (!this._selectChoice) return;
+    this._loading = true;
+    this._error = "";
+    try {
+      const res = await this._wsCall("web_monitor/select_option", {
+        selector: this._selectChoice.selector,
+        value: value,
+      });
+      this._image = "data:image/png;base64," + res.image;
+      this._selectChoice = null;
+      this._updateSteps();
+    } catch (err) {
+      console.error("Select failed:", err);
+      this._error = "Auswahl fehlgeschlagen: " + (err.message || JSON.stringify(err));
     }
     this._loading = false;
   }
@@ -422,6 +451,24 @@ class WebMonitorPanel extends LitElement {
           </div>
         `}
 
+        ${this._selectChoice ? html`
+          <div class="select-chooser">
+            <h3>Dropdown-Auswahl</h3>
+            <p>Native &lt;select&gt; Elemente lassen sich nicht im Screenshot oeffnen.
+               Bitte gewuenschte Option waehlen:</p>
+            <div class="option-list">
+              ${this._selectChoice.options.map(o => html`
+                <button
+                  class=${o.selected ? "option selected" : "option"}
+                  @click=${() => this._chooseSelectOption(o.value)}
+                  ?disabled=${this._loading}
+                >${o.label}${o.selected ? " ✓" : ""}</button>
+              `)}
+            </div>
+            <button class="cancel" @click=${() => this._selectChoice = null}>Abbrechen</button>
+          </div>
+        ` : ""}
+
         ${this._pickerResult ? html`
           <div class="picker-result">
             <h3>Ausgewaehltes Element</h3>
@@ -630,6 +677,36 @@ class WebMonitorPanel extends LitElement {
         border: 1px solid var(--divider-color);
         font-size: 16px;
       }
+      .select-chooser {
+        background: var(--card-background-color);
+        border: 1px solid var(--divider-color);
+        border-left: 4px solid #ff9800;
+        border-radius: 8px; padding: 16px; margin-top: 16px;
+      }
+      .select-chooser p {
+        font-size: 13px; color: var(--secondary-text-color);
+        margin: 4px 0 12px;
+      }
+      .option-list {
+        display: flex; flex-direction: column; gap: 4px;
+        max-height: 300px; overflow-y: auto;
+        margin-bottom: 12px;
+      }
+      .option-list .option {
+        text-align: left; padding: 8px 12px;
+        background: var(--secondary-background-color);
+        color: var(--primary-text-color);
+        border: 1px solid var(--divider-color);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .option-list .option:hover { background: var(--primary-color); color: white; }
+      .option-list .option.selected {
+        border-color: #4caf50; background: #e8f5e9; color: #1b5e20;
+      }
+      .cancel { background: var(--secondary-background-color);
+                color: var(--primary-text-color);
+                border: 1px solid var(--divider-color); }
       .picker-result {
         background: var(--card-background-color);
         border: 1px solid var(--divider-color);

@@ -1,7 +1,7 @@
 {
   "domain": "web_monitor",
   "name": "Web Monitor",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "codeowners": [],
   "dependencies": ["frontend"],
   "documentation": "https://github.com/Xunil99/ha-web-monitor",

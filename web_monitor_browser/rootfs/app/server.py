@@ -212,23 +212,56 @@ class BrowserSession:
         await self._page.keyboard.press(key)
 
     async def click(self, x: int, y: int) -> dict:
-        selector_info = await self._page.evaluate(f"""() => {{
+        # Determine what kind of element is at (x, y) BEFORE clicking,
+        # so we can give the frontend hints (e.g. options for <select>)
+        element_info = await self._page.evaluate(f"""() => {{
             const el = document.elementFromPoint({x}, {y});
             if (!el) return null;
-            return {{
-                selector: ({SELECTOR_JS})(el),
-                tag: el.tagName.toLowerCase(),
-                text: el.textContent?.trim()?.substring(0, 100) || '',
+            // Walk up to find the closest meaningful element (input, select, button, etc.)
+            let target = el;
+            const walkUp = el.closest('select, input, textarea, button, a');
+            if (walkUp) target = walkUp;
+            const info = {{
+                selector: ({SELECTOR_JS})(target),
+                tag: target.tagName.toLowerCase(),
+                type: (target.getAttribute('type') || '').toLowerCase(),
+                text: target.textContent?.trim()?.substring(0, 100) || '',
+                value: target.value !== undefined ? String(target.value).substring(0, 100) : null,
             }};
+            // For <select> elements, return the list of options
+            if (target.tagName.toLowerCase() === 'select') {{
+                info.options = Array.from(target.options).map(o => ({{
+                    value: o.value,
+                    label: o.textContent?.trim() || o.value,
+                    selected: o.selected,
+                }}));
+                info.is_select = true;
+            }}
+            // For checkboxes/radios, indicate current state
+            if (target.tagName.toLowerCase() === 'input' && (info.type === 'checkbox' || info.type === 'radio')) {{
+                info.checked = target.checked;
+            }}
+            return info;
         }}""")
+
+        # If it's a native <select>, don't click (dropdown won't render in headless).
+        # Just return the options; the frontend will let the user pick.
+        if element_info and element_info.get("is_select"):
+            return element_info
+
         await self._page.mouse.click(x, y)
         try:
             await self._page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
-        if selector_info:
-            self._steps.append({"action": "click", "selector": selector_info["selector"]})
-        return selector_info or {}
+        if element_info:
+            self._steps.append({"action": "click", "selector": element_info["selector"]})
+        return element_info or {}
+
+    async def select_option(self, selector: str, value: str) -> None:
+        """Select an option in a <select> element."""
+        await self._page.select_option(selector, value)
+        self._steps.append({"action": "select", "selector": selector, "value": value})
 
     async def fill(self, selector: str, value: str):
         await self._page.fill(selector, value)
@@ -371,6 +404,21 @@ async def fill(session_id: str, req: FillRequest):
     if not session:
         raise HTTPException(404, "No active session")
     await session.fill(req.selector, req.value)
+    image = await session.screenshot_b64()
+    return {"image": image, "steps": session.steps}
+
+
+class SelectOptionRequest(BaseModel):
+    selector: str
+    value: str
+
+
+@app.post("/session/{session_id}/select_option")
+async def select_option(session_id: str, req: SelectOptionRequest):
+    session = sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "No active session")
+    await session.select_option(req.selector, req.value)
     image = await session.screenshot_b64()
     return {"image": image, "steps": session.steps}
 
