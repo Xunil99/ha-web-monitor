@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="globeGrad" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#4FC3F7"/>
+      <stop offset="60%" stop-color="#0288D1"/>
+      <stop offset="100%" stop-color="#01579B"/>
+    </radialGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#37474F"/>
+      <stop offset="100%" stop-color="#263238"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#bgGrad)"/>
+
+  <!-- Outer pulse rings (monitoring vibe) -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#FF9800" stroke-width="3" opacity="0.25"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#FF9800" stroke-width="3" opacity="0.45"/>
+
+  <!-- Globe body -->
+  <circle cx="256" cy="256" r="150" fill="url(#globeGrad)" filter="url(#glow)"/>
+
+  <!-- Globe meridians and equator (latitude/longitude lines) -->
+  <g fill="none" stroke="#E1F5FE" stroke-width="3" opacity="0.7">
+    <!-- Equator -->
+    <ellipse cx="256" cy="256" rx="150" ry="40"/>
+    <!-- Tropic lines -->
+    <ellipse cx="256" cy="256" rx="146" ry="90" opacity="0.5"/>
+    <!-- Vertical meridian -->
+    <ellipse cx="256" cy="256" rx="40" ry="150"/>
+    <!-- Diagonal meridian -->
+    <ellipse cx="256" cy="256" rx="90" ry="146" opacity="0.5"/>
+    <!-- Prime meridian outline -->
+    <circle cx="256" cy="256" r="150"/>
+  </g>
+
+  <!-- Continent shapes (stylized blobs) -->
+  <g fill="#FFFFFF" opacity="0.85">
+    <!-- "Europe/Africa" blob -->
+    <path d="M 230 175
+             Q 260 165, 280 185
+             Q 290 210, 275 235
+             Q 285 260, 270 285
+             Q 280 320, 255 345
+             Q 240 360, 225 350
+             Q 215 320, 220 290
+             Q 205 265, 215 240
+             Q 210 210, 230 175 Z"/>
+    <!-- "Americas" blob (smaller, on the left) -->
+    <path d="M 165 220
+             Q 180 215, 188 235
+             Q 192 260, 178 280
+             Q 185 300, 175 320
+             Q 165 325, 160 305
+             Q 150 280, 158 255
+             Q 152 235, 165 220 Z"/>
+    <!-- "Asia" hint (right side) -->
+    <path d="M 310 200
+             Q 335 205, 345 230
+             Q 340 250, 320 250
+             Q 305 240, 310 200 Z"/>
+  </g>
+
+  <!-- Crosshair / target overlay (the "monitor" theme) -->
+  <g stroke="#FF9800" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.95">
+    <!-- Crosshair lines (top, right, bottom, left - with gaps in center) -->
+    <line x1="256" y1="68" x2="256" y2="100"/>
+    <line x1="256" y1="412" x2="256" y2="444"/>
+    <line x1="68" y1="256" x2="100" y2="256"/>
+    <line x1="412" y1="256" x2="444" y2="256"/>
+  </g>
+
+  <!-- Center dot indicator -->
+  <circle cx="256" cy="256" r="8" fill="#FF9800" opacity="0.95"/>
+
+  <!-- Corner brackets (selection marker theme) -->
+  <g stroke="#FF9800" stroke-width="6" stroke-linecap="round" fill="none">
+    <!-- Top-left -->
+    <polyline points="80,120 80,80 120,80"/>
+    <!-- Top-right -->
+    <polyline points="392,80 432,80 432,120"/>
+    <!-- Bottom-left -->
+    <polyline points="80,392 80,432 120,432"/>
+    <!-- Bottom-right -->
+    <polyline points="432,392 432,432 392,432"/>
+  </g>
+</svg>
