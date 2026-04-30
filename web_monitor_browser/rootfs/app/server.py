@@ -217,10 +217,26 @@ class BrowserSession:
         element_info = await self._page.evaluate(f"""() => {{
             const el = document.elementFromPoint({x}, {y});
             if (!el) return null;
-            // Walk up to find the closest meaningful element (input, select, button, etc.)
+            const isInteractive = (n) => {{
+                if (!n || n.nodeType !== 1) return false;
+                const t = n.tagName.toLowerCase();
+                return t === 'input' || t === 'select' || t === 'textarea' ||
+                       t === 'button' || t === 'a' ||
+                       n.getAttribute('contenteditable') === 'true' ||
+                       n.getAttribute('role') === 'button' ||
+                       n.getAttribute('role') === 'textbox';
+            }};
             let target = el;
-            const walkUp = el.closest('select, input, textarea, button, a');
-            if (walkUp) target = walkUp;
+            // 1. Walk up to find an interactive ancestor
+            const walkUp = el.closest('input, select, textarea, button, a, [contenteditable="true"], [role="button"], [role="textbox"]');
+            if (walkUp) {{
+                target = walkUp;
+            }} else {{
+                // 2. Look for an interactive descendant within the clicked element
+                //    (e.g. clicking a wrapper div that contains an <input>)
+                const desc = el.querySelector('input, select, textarea, [contenteditable="true"]');
+                if (desc) target = desc;
+            }}
             const info = {{
                 selector: ({SELECTOR_JS})(target),
                 tag: target.tagName.toLowerCase(),
@@ -264,7 +280,27 @@ class BrowserSession:
         self._steps.append({"action": "select", "selector": selector, "value": value})
 
     async def fill(self, selector: str, value: str):
-        await self._page.fill(selector, value)
+        try:
+            await self._page.fill(selector, value)
+        except Exception as err:
+            # Fallback: if selector points to a non-input wrapper, look for
+            # an actual input/textarea inside it.
+            inner_selector = await self._page.evaluate(f"""(sel) => {{
+                const el = document.querySelector(sel);
+                if (!el) return null;
+                const inner = el.querySelector('input, textarea, [contenteditable="true"]');
+                if (!inner) return null;
+                // Build a selector for the inner element using its id or tag+nth
+                if (inner.id) return '#' + CSS.escape(inner.id);
+                const parent = inner.parentElement;
+                if (!parent) return null;
+                const idx = Array.from(parent.children).indexOf(inner) + 1;
+                return sel + ' > ' + inner.tagName.toLowerCase() + ':nth-child(' + idx + ')';
+            }}""", selector)
+            if not inner_selector:
+                raise
+            await self._page.fill(inner_selector, value)
+            selector = inner_selector  # record the actual input selector
         self._steps.append({"action": "fill", "selector": selector, "value": value})
 
     async def activate_picker(self):
