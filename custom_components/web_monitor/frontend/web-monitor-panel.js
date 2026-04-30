@@ -52,13 +52,33 @@ class WebMonitorPanel extends LitElement {
     this._loadMonitors();
   }
 
-  _loadMonitors() {
+  updated(changedProps) {
+    // When hass becomes available (panel mount), load monitors
+    if (changedProps.has("hass") && this.hass && this._monitors.length === 0) {
+      this._loadMonitors();
+    }
+  }
+
+  async _loadMonitors() {
     if (!this.hass) return;
-    const entries = Object.values(this.hass.config_entries || {})
-      .filter(e => e.domain === "web_monitor");
-    this._monitors = entries;
-    if (entries.length > 0 && !this._selectedMonitor) {
-      this._selectedMonitor = entries[0].entry_id;
+    try {
+      const entries = await this.hass.callWS({
+        type: "config_entries/get",
+        domain: "web_monitor",
+      });
+      this._monitors = entries || [];
+      if (this._monitors.length > 0 && !this._selectedMonitor) {
+        this._selectedMonitor = this._monitors[0].entry_id;
+      }
+    } catch (err) {
+      console.error("Failed to load monitors:", err);
+      // Fallback: try the cached hass.config_entries
+      const entries = Object.values(this.hass.config_entries || {})
+        .filter(e => e.domain === "web_monitor");
+      this._monitors = entries;
+      if (entries.length > 0 && !this._selectedMonitor) {
+        this._selectedMonitor = entries[0].entry_id;
+      }
     }
   }
 
@@ -295,6 +315,7 @@ class WebMonitorPanel extends LitElement {
             `)}
           </select>
           ${activeMonitor ? html`<span class="active-monitor">→ <strong>${activeMonitor.title}</strong> (sensor.${(activeMonitor.title || "").toLowerCase().replace(/[^a-z0-9]/g, "_")})</span>` : ""}
+          <button class="reload-btn" @click=${this._loadMonitors} title="Monitor-Liste neu laden">↻</button>
         </div>
 
         <div class="toolbar">
@@ -536,6 +557,13 @@ class WebMonitorPanel extends LitElement {
         margin-left: 8px;
       }
       .monitor-bar .active-monitor strong { color: var(--primary-color); }
+      .reload-btn {
+        margin-left: auto; padding: 4px 10px;
+        background: var(--secondary-background-color);
+        color: var(--primary-text-color);
+        border: 1px solid var(--divider-color);
+        font-size: 16px;
+      }
       .picker-result {
         background: var(--card-background-color);
         border: 1px solid var(--divider-color);
