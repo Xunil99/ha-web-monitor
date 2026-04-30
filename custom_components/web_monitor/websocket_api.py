@@ -241,12 +241,17 @@ async def ws_save_monitor(hass, connection, msg):
 
     hass.config_entries.async_update_entry(entry, data=new_data)
 
+    # Send success response immediately
+    connection.send_result(msg["id"], {"status": "saved", "steps_count": len(steps)})
+
+    # Trigger refresh in background (don't block the WS response)
     if entry_id in hass.data.get(DOMAIN, {}):
         runtime = hass.data[DOMAIN][entry_id]
         runtime["config"].update(new_data)
-        await runtime["coordinator"].async_request_refresh()
-
-    connection.send_result(msg["id"], {"status": "saved", "steps_count": len(steps)})
+        try:
+            hass.async_create_task(runtime["coordinator"].async_request_refresh())
+        except Exception as err:
+            _LOGGER.warning("Failed to schedule refresh after save: %s", err)
 
 
 @websocket_api.websocket_command({

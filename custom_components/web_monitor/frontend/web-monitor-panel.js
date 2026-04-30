@@ -17,6 +17,7 @@ class WebMonitorPanel extends LitElement {
       _extractType: { type: String },
       _extractAttribute: { type: String },
       _error: { type: String },
+      _success: { type: String },
     };
   }
 
@@ -34,6 +35,7 @@ class WebMonitorPanel extends LitElement {
     this._extractType = "text_content";
     this._extractAttribute = "";
     this._error = "";
+    this._success = "";
     this._msgId = 1;
   }
 
@@ -191,8 +193,17 @@ class WebMonitorPanel extends LitElement {
   }
 
   async _saveMonitor() {
-    if (!this._selectedMonitor || !this._pickerResult) return;
+    if (!this._selectedMonitor) {
+      this._error = "Bitte zuerst einen Monitor oben auswaehlen.";
+      return;
+    }
+    if (!this._pickerResult) {
+      this._error = "Bitte zuerst ein Element auswaehlen.";
+      return;
+    }
     this._loading = true;
+    this._error = "";
+    this._success = "";
     try {
       const data = {
         entry_id: this._selectedMonitor,
@@ -202,11 +213,12 @@ class WebMonitorPanel extends LitElement {
       if (this._extractType === "attribute" && this._extractAttribute) {
         data.target_attribute = this._extractAttribute;
       }
-      await this._wsCall("web_monitor/save_monitor", data);
-      alert("Monitor gespeichert! Der Scraper beginnt mit dem naechsten Intervall.");
+      const result = await this._wsCall("web_monitor/save_monitor", data);
+      const monitorName = this._monitors.find(m => m.entry_id === this._selectedMonitor)?.title || this._selectedMonitor;
+      this._success = `Monitor "${monitorName}" gespeichert (${result.steps_count || 0} Schritte). Der Scraper laeuft mit dem naechsten Intervall.`;
     } catch (e) {
       console.error("Save failed:", e);
-      alert("Fehler beim Speichern: " + e.message);
+      this._error = "Fehler beim Speichern: " + (e.message || JSON.stringify(e));
     }
     this._loading = false;
   }
@@ -222,19 +234,25 @@ class WebMonitorPanel extends LitElement {
   }
 
   render() {
+    const activeMonitor = this._monitors.find(m => m.entry_id === this._selectedMonitor);
     return html`
       <div class="container">
         <h1>Web Monitor</h1>
 
-        <div class="toolbar">
+        <div class="monitor-bar">
+          <label>Bearbeite Monitor:</label>
           <select @change=${e => this._selectedMonitor = e.target.value}>
+            ${this._monitors.length === 0 ? html`<option>(noch keiner angelegt)</option>` : ""}
             ${this._monitors.map(m => html`
               <option value=${m.entry_id} ?selected=${m.entry_id === this._selectedMonitor}>
                 ${m.title}
               </option>
             `)}
           </select>
+          ${activeMonitor ? html`<span class="active-monitor">→ <strong>${activeMonitor.title}</strong> (sensor.${(activeMonitor.title || "").toLowerCase().replace(/[^a-z0-9]/g, "_")})</span>` : ""}
+        </div>
 
+        <div class="toolbar">
           ${!this._sessionActive ? html`
             <input type="text" placeholder="URL eingeben..."
               .value=${this._url}
@@ -263,6 +281,7 @@ class WebMonitorPanel extends LitElement {
         ${this._loading ? html`<div class="loading">Laden...</div>` : ""}
 
         ${this._error ? html`<div class="error">${this._error}</div>` : ""}
+        ${this._success ? html`<div class="success">${this._success}</div>` : ""}
 
         ${this._image ? html`
           <div class="scroll-controls">
@@ -313,8 +332,8 @@ class WebMonitorPanel extends LitElement {
               ` : ""}
             </div>
 
-            <button @click=${this._saveMonitor} class="save" ?disabled=${this._loading}>
-              Monitor speichern
+            <button @click=${this._saveMonitor} class="save" ?disabled=${this._loading || !this._selectedMonitor}>
+              In Monitor "${activeMonitor?.title || "(keiner)"}" speichern
             </button>
           </div>
         ` : ""}
@@ -416,6 +435,32 @@ class WebMonitorPanel extends LitElement {
         margin-bottom: 12px;
         font-size: 14px;
       }
+      .success {
+        background: #e8f5e9;
+        color: #1b5e20;
+        border: 1px solid #66bb6a;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+      .monitor-bar {
+        display: flex; gap: 8px; align-items: center;
+        flex-wrap: wrap; margin-bottom: 12px;
+        padding: 12px; background: var(--card-background-color);
+        border: 1px solid var(--divider-color); border-radius: 8px;
+      }
+      .monitor-bar label { font-weight: 500; }
+      .monitor-bar select {
+        padding: 8px 12px; border: 1px solid var(--divider-color);
+        border-radius: 4px; background: var(--card-background-color);
+        color: var(--primary-text-color); font-size: 14px;
+      }
+      .monitor-bar .active-monitor {
+        font-size: 13px; color: var(--secondary-text-color);
+        margin-left: 8px;
+      }
+      .monitor-bar .active-monitor strong { color: var(--primary-color); }
       .picker-result {
         background: var(--card-background-color);
         border: 1px solid var(--divider-color);
