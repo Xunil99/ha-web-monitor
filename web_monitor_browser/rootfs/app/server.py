@@ -218,6 +218,21 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Web Monitor Browser", lifespan=lifespan)
 
 
+@app.get("/")
+async def root():
+    return {
+        "service": "Web Monitor Browser",
+        "version": "0.1.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "scrape": "POST /scrape",
+            "session": "POST /session/start",
+        },
+    }
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok", "sessions": len(sessions)}
