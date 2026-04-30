@@ -151,7 +151,7 @@ class BrowserSession:
         self._page = await self._context.new_page()
         url = normalize_url(url)
         if url != "about:blank":
-            await self._page.goto(url, wait_until="networkidle", timeout=30000)
+            await self._page.goto(url, wait_until="domcontentloaded", timeout=30000)
             self._steps.append({"action": "goto", "url": url})
 
     async def screenshot_b64(self) -> str:
@@ -160,7 +160,7 @@ class BrowserSession:
 
     async def navigate(self, url: str):
         url = normalize_url(url)
-        await self._page.goto(url, wait_until="networkidle", timeout=30000)
+        await self._page.goto(url, wait_until="domcontentloaded", timeout=30000)
         self._steps.append({"action": "goto", "url": url})
 
     async def click(self, x: int, y: int) -> dict:
@@ -175,7 +175,7 @@ class BrowserSession:
         }}""")
         await self._page.mouse.click(x, y)
         try:
-            await self._page.wait_for_load_state("networkidle", timeout=5000)
+            await self._page.wait_for_load_state("domcontentloaded", timeout=5000)
         except Exception:
             pass
         if selector_info:
@@ -385,7 +385,7 @@ async def scrape(req: ScrapeRequest):
                     s = step.model_dump(exclude_none=True)
                     action = s["action"]
                     if action == "goto":
-                        await page.goto(normalize_url(s["url"]), wait_until="networkidle", timeout=timeout_ms)
+                        await page.goto(normalize_url(s["url"]), wait_until="domcontentloaded", timeout=timeout_ms)
                     elif action == "click":
                         await page.click(s["selector"], timeout=timeout_ms)
                     elif action == "fill":
