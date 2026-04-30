@@ -27,10 +27,8 @@ RUN pip install --no-cache-dir \
 # Install Chromium and all required system libraries via Playwright
 RUN playwright install --with-deps chromium
 
-# Copy application
+# Copy application and s6 service
 COPY rootfs/ /
 
-# Make run script executable
-RUN chmod a+x /run.sh
-
-CMD [ "/run.sh" ]
+# Make s6 service script executable
+RUN chmod a+x /etc/s6-overlay/s6-rc.d/web-monitor/run
