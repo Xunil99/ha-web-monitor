@@ -15,7 +15,29 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_ADDON_URL = "http://localhost:8099"
+DEFAULT_ADDON_URL = "http://web_monitor_browser:8099"
+_FALLBACK_URLS = [
+    "http://web_monitor_browser:8099",
+    "http://local_web_monitor_browser:8099",
+    "http://homeassistant.local:8099",
+    "http://localhost:8099",
+]
+
+
+async def _find_reachable_addon_url() -> str | None:
+    """Probe candidate URLs and return the first that responds."""
+    for candidate in _FALLBACK_URLS:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{candidate}/health",
+                    timeout=aiohttp.ClientTimeout(total=3),
+                ) as resp:
+                    if resp.status == 200:
+                        return candidate
+        except Exception:
+            continue
+    return None
 
 
 @dataclass
@@ -68,6 +90,18 @@ class BrowserWrapper:
         }
         if target.get("attribute"):
             payload["target"]["attribute"] = target["attribute"]
+
+        # Auto-resolve add-on URL if default is not reachable
+        if not await self.check_addon_available():
+            resolved = await _find_reachable_addon_url()
+            if resolved:
+                self._addon_url = resolved
+                _LOGGER.info("Using add-on URL: %s", resolved)
+            else:
+                return ScrapeResult(
+                    success=False,
+                    error="Web Monitor Browser add-on is not reachable. Make sure it's installed and running.",
+                )
 
         try:
             async with aiohttp.ClientSession() as session:

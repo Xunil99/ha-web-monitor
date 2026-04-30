@@ -16,6 +16,7 @@ class WebMonitorPanel extends LitElement {
       _sessionActive: { type: Boolean },
       _extractType: { type: String },
       _extractAttribute: { type: String },
+      _error: { type: String },
     };
   }
 
@@ -32,6 +33,7 @@ class WebMonitorPanel extends LitElement {
     this._sessionActive = false;
     this._extractType = "text_content";
     this._extractAttribute = "";
+    this._error = "";
     this._msgId = 1;
   }
 
@@ -56,6 +58,7 @@ class WebMonitorPanel extends LitElement {
 
   async _startSession() {
     this._loading = true;
+    this._error = "";
     try {
       await this._wsCall("web_monitor/start_session", { url: this._url || "about:blank" });
       this._sessionActive = true;
@@ -65,6 +68,7 @@ class WebMonitorPanel extends LitElement {
       }
     } catch (e) {
       console.error("Start session failed:", e);
+      this._error = "Session konnte nicht gestartet werden: " + (e.message || JSON.stringify(e));
     }
     this._loading = false;
   }
@@ -72,12 +76,14 @@ class WebMonitorPanel extends LitElement {
   async _navigate() {
     if (!this._url) return;
     this._loading = true;
+    this._error = "";
     try {
       const res = await this._wsCall("web_monitor/navigate", { url: this._url });
       this._image = "data:image/png;base64," + res.image;
       this._updateSteps();
     } catch (e) {
       console.error("Navigate failed:", e);
+      this._error = "Navigation fehlgeschlagen: " + (e.message || JSON.stringify(e));
     }
     this._loading = false;
   }
@@ -203,6 +209,8 @@ class WebMonitorPanel extends LitElement {
 
         ${this._loading ? html`<div class="loading">Laden...</div>` : ""}
 
+        ${this._error ? html`<div class="error">${this._error}</div>` : ""}
+
         ${this._image ? html`
           <div class="browser-view">
             <img src=${this._image}
@@ -317,6 +325,15 @@ class WebMonitorPanel extends LitElement {
       .loading {
         text-align: center; padding: 12px;
         color: var(--primary-color); font-weight: bold;
+      }
+      .error {
+        background: #ffebee;
+        color: #b71c1c;
+        border: 1px solid #ef5350;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 12px;
+        font-size: 14px;
       }
       .picker-result {
         background: var(--card-background-color);

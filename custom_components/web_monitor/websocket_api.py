@@ -12,7 +12,15 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-ADDON_URL = "http://localhost:8099"
+# HA addons are reachable from HA Core via their slug as hostname.
+# Fallbacks try common alternatives for different setups.
+ADDON_URLS = [
+    "http://web_monitor_browser:8099",      # HA Supervisor DNS (most common)
+    "http://local_web_monitor_browser:8099", # Local add-on prefix
+    "http://homeassistant.local:8099",       # Host IP fallback
+    "http://localhost:8099",                 # Same-network fallback
+]
+ADDON_URL = ADDON_URLS[0]  # Will be overridden by _resolve_addon_url
 
 
 def async_setup(hass: HomeAssistant) -> None:
@@ -31,9 +39,40 @@ def async_setup(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, ws_close_session)
 
 
+_RESOLVED_ADDON_URL: str | None = None
+
+
+async def _resolve_addon_url() -> str:
+    """Find which add-on URL works by probing /health."""
+    global _RESOLVED_ADDON_URL
+    if _RESOLVED_ADDON_URL:
+        return _RESOLVED_ADDON_URL
+
+    for candidate in ADDON_URLS:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f"{candidate}/health",
+                    timeout=aiohttp.ClientTimeout(total=3),
+                ) as resp:
+                    if resp.status == 200:
+                        _LOGGER.info("Web Monitor add-on reachable at %s", candidate)
+                        _RESOLVED_ADDON_URL = candidate
+                        return candidate
+        except Exception as err:
+            _LOGGER.debug("Add-on URL %s not reachable: %s", candidate, err)
+
+    raise ConnectionError(
+        "Web Monitor Browser add-on is not reachable. "
+        "Make sure it's installed and running. "
+        f"Tried: {', '.join(ADDON_URLS)}"
+    )
+
+
 async def _addon_request(method: str, path: str, json: dict = None, timeout: int = 30) -> dict:
     """Make a request to the add-on REST API."""
-    url = f"{ADDON_URL}{path}"
+    base = await _resolve_addon_url()
+    url = f"{base}{path}"
     async with aiohttp.ClientSession() as session:
         kwargs = {"timeout": aiohttp.ClientTimeout(total=timeout)}
         if json:
