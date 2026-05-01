@@ -16,5 +16,20 @@
     },
     "error": { "unknown": "Unerwarteter Fehler" },
     "abort": { "already_configured": "Dieser Monitor ist bereits konfiguriert" }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Web Monitor Einstellungen",
+        "description": "Prüf-Intervall und andere Einstellungen für diesen Monitor ändern.",
+        "data": {
+          "interval": "Prüf-Intervall (Sekunden)",
+          "timeout": "Seitenladezeit-Limit (Sekunden)",
+          "save_screenshots": "Screenshots speichern",
+          "persist_session": "Browser-Session beibehalten",
+          "history_days": "Verlauf aufbewahren (Tage)"
+        }
+      }
+    }
   }
 }

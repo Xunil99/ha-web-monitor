@@ -21,6 +21,21 @@
       "already_configured": "This monitor is already configured"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Web Monitor Settings",
+        "description": "Change polling interval and other settings for this monitor.",
+        "data": {
+          "interval": "Check Interval (seconds)",
+          "timeout": "Page Load Timeout (seconds)",
+          "save_screenshots": "Save Screenshots",
+          "persist_session": "Persist Browser Session",
+          "history_days": "Keep History (days)"
+        }
+      }
+    }
+  },
   "services": {
     "refresh": {
       "name": "Refresh",
